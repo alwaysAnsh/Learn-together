@@ -1,7 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_URL = 'https://harshita-3fe5.onrender.com/api';
+const API_URL = 'https://harshita-3fe5.onrender.com/api'; 
+// https://harshita-3fe5.onrender.com/api
+// http://localhost:5050
 
 // Load user from localStorage
 const user = JSON.parse(localStorage.getItem('user'));

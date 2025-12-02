@@ -9,6 +9,7 @@ dotenv.config();
 const app = express();
 
 /* -----------------------  CORS FIX (FINAL)  ----------------------- */
+// https://ansh-delta.vercel.app
 
 app.use(
   cors({
@@ -66,6 +67,22 @@ const taskSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   notes: { type: String, default: "" },
 });
+
+// Note Schema - Shared notes for all users
+const noteSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  content: { type: String, required: true },
+  category: { 
+    type: String, 
+    default: 'General',
+    enum: ['General', 'DSA', 'System Design', 'Web Dev', 'React', 'JavaScript', 'Other']
+  },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const Note = mongoose.model('Note', noteSchema);
 
 const User = mongoose.model("User", userSchema);
 const Task = mongoose.model("Task", taskSchema);
@@ -272,9 +289,109 @@ app.delete("/api/tasks/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================
+// NOTES ROUTES
+// ============================================
+
+// Get all notes (accessible to all users)
+app.get('/api/notes', authenticateToken, async (req, res) => {
+  try {
+    const notes = await Note.find()
+      .populate('createdBy', 'username name')
+      .sort({ updatedAt: -1 });
+    res.json(notes);
+  } catch (error) {
+    console.error('❌ Get notes error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create note
+app.post('/api/notes', authenticateToken, async (req, res) => {
+  try {
+    const { title, content, category } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+
+    const note = new Note({
+      title,
+      content,
+      category: category || 'General',
+      createdBy: req.user.id
+    });
+
+    await note.save();
+    const populatedNote = await Note.findById(note._id)
+      .populate('createdBy', 'username name');
+    
+    console.log('✅ Note created:', note.title);
+    res.status(201).json(populatedNote);
+  } catch (error) {
+    console.error('❌ Create note error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update note (only creator can update)
+app.patch('/api/notes/:id', authenticateToken, async (req, res) => {
+  try {
+    const { title, content, category } = req.body;
+    const note = await Note.findById(req.params.id);
+
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    // Only the creator can update
+    if (note.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to edit this note' });
+    }
+
+    if (title) note.title = title;
+    if (content) note.content = content;
+    if (category) note.category = category;
+    note.updatedAt = Date.now();
+
+    await note.save();
+    const updatedNote = await Note.findById(note._id)
+      .populate('createdBy', 'username name');
+    
+    console.log('✅ Note updated:', note.title);
+    res.json(updatedNote);
+  } catch (error) {
+    console.error('❌ Update note error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete note (only creator can delete)
+app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id);
+
+    if (!note) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    // Only the creator can delete
+    if (note.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this note' });
+    }
+
+    await Note.findByIdAndDelete(req.params.id);
+    console.log('✅ Note deleted');
+    res.json({ message: 'Note deleted' });
+  } catch (error) {
+    console.error('❌ Delete note error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 /* -------------------- Start Server -------------------- */
 
 const PORT = process.env.PORT || 5050;
-// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-app.listen(process.env.PORT || 5000, "0.0.0.0");
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(process.env.PORT || 5050, "0.0.0.0");
 

@@ -5,6 +5,7 @@ import { logout } from '../redux/slices/authSlice';
 import { getMyTasks, getAssignedByMe } from '../redux/slices/taskSlice';
 import TaskCard from './TaskCard';
 import AssignTask from './AssignTask';
+import Notes from './Notes';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -50,12 +51,10 @@ const Dashboard = () => {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-content">
-         <div className="header-left">
-  <h1 className="dashboard-title">📘 Task Assignment</h1>
-  <p className="dashboard-subtitle">
-    Welcome back, <strong>{user?.name}</strong> 👋
-  </p>
-</div>
+          <div className="header-left">
+            <h1>Task Assignment</h1>
+            <p>Welcome, <strong>{user?.name}</strong></p>
+          </div>
           <div className="header-right">
             <button className="assign-btn" onClick={() => setShowAssignModal(true)}>
               + Assign Task
@@ -81,68 +80,81 @@ const Dashboard = () => {
         >
           Assigned by Me ({assignedByMe.length})
         </button>
+        <button
+          className={`tab ${activeTab === 'notes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notes')}
+        >
+          📝 Shared Notes
+        </button>
       </div>
 
-      {/* Category Filter */}
-      <div className="filter-container">
-        <label>Filter by Category:</label>
-        <div className="category-pills">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              className={`category-pill ${filterCategory === cat ? 'active' : ''}`}
-              onClick={() => setFilterCategory(cat)}
-            >
-              {cat === 'all' ? 'All' : cat}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Content based on active tab */}
+      {activeTab === 'notes' ? (
+        <Notes />
+      ) : (
+        <>
+          {/* Category Filter */}
+          <div className="filter-container">
+            <label>Filter by Category:</label>
+            <div className="category-pills">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  className={`category-pill ${filterCategory === cat ? 'active' : ''}`}
+                  onClick={() => setFilterCategory(cat)}
+                >
+                  {cat === 'all' ? 'All' : cat}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Tasks Display */}
-      <div className="tasks-content">
-        {isLoading ? (
-          <div className="loading">Loading tasks...</div>
-        ) : filteredTasks.length === 0 ? (
-          <div className="empty-state">
-            <p>No tasks found.</p>
-            {activeTab === 'my-tasks' && (
-              <p className="empty-subtitle">Waiting for tasks to be assigned to you.</p>
+          {/* Tasks Display */}
+          <div className="tasks-content">
+            {isLoading ? (
+              <div className="loading">Loading tasks...</div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="empty-state">
+                <p>No tasks found.</p>
+                {activeTab === 'my-tasks' && (
+                  <p className="empty-subtitle">Waiting for tasks to be assigned to you.</p>
+                )}
+              </div>
+            ) : filterCategory === 'all' ? (
+              // Show grouped by category when 'all' is selected
+              <div className="grouped-tasks">
+                {Object.entries(groupedTasks).map(([category, tasks]) => 
+                  tasks.length > 0 && (
+                    <div key={category} className="category-section">
+                      <h2 className="category-title">{category}</h2>
+                      <div className="tasks-grid">
+                        {tasks.map(task => (
+                          <TaskCard 
+                            key={task._id} 
+                            task={task} 
+                            showAssignedTo={activeTab === 'assigned-by-me'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              // Show filtered tasks when specific category is selected
+              <div className="tasks-grid">
+                {filteredTasks.map(task => (
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    showAssignedTo={activeTab === 'assigned-by-me'}
+                  />
+                ))}
+              </div>
             )}
           </div>
-        ) : filterCategory === 'all' ? (
-          // Show grouped by category when 'all' is selected
-          <div className="grouped-tasks">
-            {Object.entries(groupedTasks).map(([category, tasks]) => 
-              tasks.length > 0 && (
-                <div key={category} className="category-section">
-                  <h2 className="category-title">{category}</h2>
-                  <div className="tasks-grid">
-                    {tasks.map(task => (
-                      <TaskCard 
-                        key={task._id} 
-                        task={task} 
-                        showAssignedTo={activeTab === 'assigned-by-me'}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        ) : (
-          // Show filtered tasks when specific category is selected
-          <div className="tasks-grid">
-            {filteredTasks.map(task => (
-              <TaskCard 
-                key={task._id} 
-                task={task} 
-                showAssignedTo={activeTab === 'assigned-by-me'}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Assign Task Modal */}
       {showAssignModal && (
