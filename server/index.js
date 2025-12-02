@@ -393,5 +393,5 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
 
 const PORT = process.env.PORT || 5050;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-app.listen(process.env.PORT || 5050, "0.0.0.0");
+app.listen(process.env.PORT || 5000, "0.0.0.0");
 
