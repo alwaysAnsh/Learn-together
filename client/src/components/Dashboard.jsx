@@ -6,6 +6,7 @@ import { getMyTasks, getAssignedByMe } from '../redux/slices/taskSlice';
 import TaskCard from './TaskCard';
 import AssignTask from './AssignTask';
 import Notes from './Notes';
+import ActivityFeed from './ActivityFeed';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -86,11 +87,19 @@ const Dashboard = () => {
         >
           📝 Shared Notes
         </button>
+        <button
+          className={`tab ${activeTab === 'activity' ? 'active' : ''}`}
+          onClick={() => setActiveTab('activity')}
+        >
+          🎯 Activity Feed
+        </button>
       </div>
 
       {/* Content based on active tab */}
       {activeTab === 'notes' ? (
         <Notes />
+      ) : activeTab === 'activity' ? (
+        <ActivityFeed />
       ) : (
         <>
           {/* Category Filter */}

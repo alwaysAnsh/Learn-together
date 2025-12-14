@@ -13,7 +13,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["https://ansh-delta.vercel.app"],
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -81,6 +81,23 @@ const noteSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
+
+// Activity Schema - What users have accomplished/done
+const activitySchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  link: { type: String, default: '' },
+  category: { 
+    type: String, 
+    default: 'General',
+    enum: ['General', 'DSA', 'System Design', 'Web Dev', 'React', 'JavaScript', 'Other']
+  },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  completedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Users who also completed this
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Activity = mongoose.model('Activity', activitySchema);
 
 const Note = mongoose.model('Note', noteSchema);
 
@@ -389,9 +406,125 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================
+// ACTIVITY ROUTES (What I Did)
+// ============================================
+
+// Get all activities
+app.get('/api/activities', authenticateToken, async (req, res) => {
+  try {
+    const activities = await Activity.find()
+      .populate('createdBy', 'username name')
+      .populate('completedBy', 'username name')
+      .sort({ createdAt: -1 });
+    res.json(activities);
+  } catch (error) {
+    console.error('❌ Get activities error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create activity (post what you did)
+app.post('/api/activities', authenticateToken, async (req, res) => {
+  try {
+    const { title, description, link, category } = req.body;
+    
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Title and description are required' });
+    }
+
+    const activity = new Activity({
+      title,
+      description,
+      link: link || '',
+      category: category || 'General',
+      createdBy: req.user.id,
+      completedBy: [req.user.id] // Creator automatically marked as completed
+    });
+
+    await activity.save();
+    const populatedActivity = await Activity.findById(activity._id)
+      .populate('createdBy', 'username name')
+      .populate('completedBy', 'username name');
+    
+    console.log('✅ Activity created:', activity.title);
+    res.status(201).json(populatedActivity);
+  } catch (error) {
+    console.error('❌ Create activity error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Toggle "I did this too" - Add or remove user from completedBy
+app.patch('/api/activities/:id/toggle-completion', authenticateToken, async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.id);
+
+    if (!activity) {
+      return res.status(404).json({ message: 'Activity not found' });
+    }
+
+    const userId = req.user.id;
+    const hasCompleted = activity.completedBy.includes(userId);
+
+    if (hasCompleted) {
+      // Remove user from completedBy
+      activity.completedBy = activity.completedBy.filter(id => id.toString() !== userId);
+    } else {
+      // Add user to completedBy
+      activity.completedBy.push(userId);
+    }
+
+    await activity.save();
+    const updatedActivity = await Activity.findById(activity._id)
+      .populate('createdBy', 'username name')
+      .populate('completedBy', 'username name');
+    
+    console.log(`✅ Activity completion toggled: ${hasCompleted ? 'removed' : 'added'}`);
+    res.json(updatedActivity);
+  } catch (error) {
+    console.error('❌ Toggle completion error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete activity (only creator can delete)
+app.delete('/api/activities/:id', authenticateToken, async (req, res) => {
+  try {
+    const activity = await Activity.findById(req.params.id);
+
+    if (!activity) {
+      return res.status(404).json({ message: 'Activity not found' });
+    }
+
+    // Only the creator can delete
+    if (activity.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this activity' });
+    }
+
+    await Activity.findByIdAndDelete(req.params.id);
+    console.log('✅ Activity deleted');
+    res.json({ message: 'Activity deleted' });
+  } catch (error) {
+    console.error('❌ Delete activity error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server error:', err);
+  res.status(500).json({ message: 'Internal server error', error: err.message });
+});
+
 /* -------------------- Start Server -------------------- */
 
 const PORT = process.env.PORT || 5050;
-// app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-app.listen(process.env.PORT || 5000, "0.0.0.0");
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// app.listen(process.env.PORT || 5000, "0.0.0.0");
 
