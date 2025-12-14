@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../redux/slices/authSlice';
 import { getMyTasks, getAssignedByMe } from '../redux/slices/taskSlice';
 import TaskCard from './TaskCard';
@@ -52,10 +52,12 @@ const Dashboard = () => {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-content">
+          <Link to={'/'}>
           <div className="header-left">
-            <h1>Task Assignment</h1>
+            <h1>Karya</h1>
             <p>Welcome, <strong>{user?.name}</strong></p>
           </div>
+          </Link>
           <div className="header-right">
             <button className="assign-btn" onClick={() => setShowAssignModal(true)}>
               + Assign Task
